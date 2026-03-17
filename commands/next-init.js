@@ -70,10 +70,9 @@ function aliases() {
     const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf-8'));
     const paths = tsconfig?.compilerOptions?.paths;
     if (!paths) return null;
-    return Object.entries(paths).map(([alias, targets]) => ({
-      alias,
-      target: targets[0].replace('/*', ''),
-    }));
+    return Object.entries(paths).flatMap(([alias, targets]) =>
+      targets.map(t => ({ alias, target: t.replace('/*', '') }))
+    );
   } catch {
     return null;
   }
@@ -457,6 +456,11 @@ async function main() {
       note: 'After execution, read `.claude/plan.md` with the Read tool and summarize the code structure for the user.',
     },
     {
+      file: 'next-search.md',
+      script: 'next-search.js',
+      note: 'Display the search results to the user.',
+    },
+    {
       file: 'next-implement.md',
       script: null,
       note: '/reNext next-implement $ARGUMENTS',
@@ -468,7 +472,7 @@ async function main() {
       : [note];
     fs.writeFileSync(path.join(commandsDir, file), lines.join('\n'), 'utf-8');
   }
-  console.log('✅ .claude/commands/ slash commands registered (next-init, next-fetch, next-plan, next-implement)');
+  console.log('✅ .claude/commands/ slash commands registered (next-init, next-fetch, next-plan, next-search, next-implement)');
 
   // Generate CLAUDE.md — skill template + inject actual file tree
   const skillDir = path.resolve(__dirname, '..');

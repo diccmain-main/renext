@@ -181,18 +181,20 @@ function computeImportedBy(targetRel, filesJson, aliasPrefixes, projectRoot) {
 
     // Resolve each import spec and check if it matches targetRel
     for (const [spec, { names, typeOnly }] of namedBySpec) {
-      const resolved = resolveSpec(spec, importerRel, aliasPrefixes);
-      if (!resolved) continue;
+      const resolvedList = resolveSpec(spec, importerRel, aliasPrefixes);
+      if (!resolvedList) continue;
 
-      // extension candidates
-      const candidates = path.extname(resolved)
-        ? [resolved]
-        : [
-            resolved + '.ts', resolved + '.tsx',
-            resolved + '.js', resolved + '.jsx',
-            resolved + '/index.ts', resolved + '/index.tsx',
-            resolved + '/index.js', resolved + '/index.jsx',
-          ];
+      // extension candidates for all resolved paths
+      const candidates = resolvedList.flatMap(resolved =>
+        path.extname(resolved)
+          ? [resolved]
+          : [
+              resolved + '.ts', resolved + '.tsx',
+              resolved + '.js', resolved + '.jsx',
+              resolved + '/index.ts', resolved + '/index.tsx',
+              resolved + '/index.js', resolved + '/index.jsx',
+            ]
+      );
 
       if (candidates.includes(targetRel)) {
         const named = [...names].filter(n => n !== 'default');
@@ -209,14 +211,15 @@ function computeImportedBy(targetRel, filesJson, aliasPrefixes, projectRoot) {
 function resolveSpec(spec, importerRel, aliasPrefixes) {
   if (spec.startsWith('.')) {
     const importerDir = path.dirname(importerRel);
-    return path.normalize(importerDir + '/' + spec).replace(/\\/g, '/').replace(/^\.\//, '');
+    return [path.normalize(importerDir + '/' + spec).replace(/\\/g, '/').replace(/^\.\//, '')];
   }
+  const results = [];
   for (const { aliasPrefix, targetPrefix } of aliasPrefixes) {
     if (spec.startsWith(aliasPrefix)) {
-      return (targetPrefix + spec.slice(aliasPrefix.length)).replace(/^\.\//, '');
+      results.push((targetPrefix + spec.slice(aliasPrefix.length)).replace(/^\.\//, ''));
     }
   }
-  return null;
+  return results.length > 0 ? results : null;
 }
 
 // ─── Convert tsconfig alias to aliasPrefixes array ───────────────
@@ -337,10 +340,9 @@ function loadAliasPrefixes(projectRoot) {
     const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf-8'));
     const paths = tsconfig?.compilerOptions?.paths;
     if (!paths) return [];
-    const aliasMap = Object.entries(paths).map(([alias, targets]) => ({
-      alias,
-      target: targets[0].replace('/*', ''),
-    }));
+    const aliasMap = Object.entries(paths).flatMap(([alias, targets]) =>
+      targets.map(t => ({ alias, target: t.replace('/*', '') }))
+    );
     return buildAliasPrefixes(aliasMap);
   } catch { return []; }
 }

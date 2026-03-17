@@ -131,12 +131,14 @@ async function main() {
   const currentlyImports = new Set();
   const fromPattern = /from\s+['"]([^'"]+)['"]/g;
   for (const m of content.matchAll(fromPattern)) {
-    const resolved = resolveSpec(m[1], relPath, aliasPrefixes);
-    if (!resolved) continue;
-    const candidates = path.extname(resolved)
-      ? [resolved]
-      : [resolved + '.ts', resolved + '.tsx', resolved + '.js', resolved + '.jsx',
-         resolved + '/index.ts', resolved + '/index.tsx', resolved + '/index.js', resolved + '/index.jsx'];
+    const resolvedList = resolveSpec(m[1], relPath, aliasPrefixes);
+    if (!resolvedList) continue;
+    const candidates = resolvedList.flatMap(resolved =>
+      path.extname(resolved)
+        ? [resolved]
+        : [resolved + '.ts', resolved + '.tsx', resolved + '.js', resolved + '.jsx',
+           resolved + '/index.ts', resolved + '/index.tsx', resolved + '/index.js', resolved + '/index.jsx']
+    );
     for (const c of candidates) {
       if (filesJson[c]) { currentlyImports.add(c); break; }
     }
